@@ -115,7 +115,7 @@ ProxyStartPort=18080
 NetworkStartPort=28080
 
 User="$USER"
-RCFolder=~/go/src/rabia
+RCFolder=~/go/src/Rabia_with_Qsync
 
 # Section 2. user configurations - type 2 (see comments above for their meanings)
 

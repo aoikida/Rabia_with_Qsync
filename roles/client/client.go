@@ -210,7 +210,8 @@ func (c *Client) sendOneRequest(i int) {
 */
 func (c *Client) processOneReply(rep Command) {
 	if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
-		panic("already received")
+		//panic("already received")
+		return
 	}
 	c.CommandLog[rep.CliSeq].ReceiveTime = time.Now()
 	c.CommandLog[rep.CliSeq].Duration = c.CommandLog[rep.CliSeq].ReceiveTime.Sub(c.CommandLog[rep.CliSeq].SendTime)

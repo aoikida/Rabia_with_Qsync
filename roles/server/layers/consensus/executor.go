@@ -447,7 +447,8 @@ func (c *Consensus) epilogue(seq uint32, dec ConsensusObj) {
 		//連続でNULL値に合意した場合, PQの先頭の要素を取り出して送信
 		if c.CurrConsecutiveNulls >= 1000 {
 			//fmt.Printf("dec command = %s, seq = %d, SvrId = %d, CurrConsecutiveNulls = %d\n", dec.Commands[0], seq, c.SvrId, c.CurrConsecutiveNulls)
-			obj := c.Ledger[slot].GetMyProposal()
+			obj := c.Ledger[slot].MyProposal
+			obj.SvrSeq = seq
 			msg := Msg{Type: PQcheck, Obj: &obj}
 			c.toNet(msg)
 			c.CurrConsecutiveNulls = 0

@@ -1,4 +1,19 @@
 /*
+   Copyright 2024 Aoi Kida
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+/*
     Copyright 2021 Rabia Research Team and Developers
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -135,6 +150,8 @@ func (c *Client) Epilogue() {
 	client finds the Conf.ClientTimeout time is reached, it exits the loop.
 
 */
+
+/* Original CloseLoopClient function
 func (c *Client) CloseLoopClient() {
 	c.startSending = time.Now()
 	ticker := time.NewTicker(Conf.ClientTimeout)
@@ -143,6 +160,9 @@ MainLoop:
 		c.sendOneRequest(i)
 		select {
 		case rep := <-c.TCP.RecvChan:
+			if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
+				continue
+			}
 			c.processOneReply(rep)
 		case <-ticker.C:
 			break MainLoop
@@ -150,6 +170,32 @@ MainLoop:
 	}
 	c.endSending = time.Now()
 	c.endReceiving = time.Now()
+}
+*/
+
+// Version with resilience to duplicate response
+func (c *Client) CloseLoopClient() {
+    c.startSending = time.Now()
+    ticker := time.NewTicker(Conf.ClientTimeout)
+MainLoop:
+    for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
+        c.sendOneRequest(i)
+    ResponseLoop:
+        for {  // 応答を待つための無限ループ
+            select {
+            case rep := <-c.TCP.RecvChan:
+                if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
+                    continue ResponseLoop  // 同じiのイテレーションで再度応答を待つ
+                }
+                c.processOneReply(rep)
+                break ResponseLoop  // 有効な応答を処理したら次のリクエストへ
+            case <-ticker.C:
+                break MainLoop
+            }
+        }
+    }
+    c.endSending = time.Now()
+    c.endReceiving = time.Now()
 }
 
 /*
@@ -209,10 +255,6 @@ func (c *Client) sendOneRequest(i int) {
 	Processes on received reply
 */
 func (c *Client) processOneReply(rep Command) {
-	if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
-		//panic("already received")
-		return
-	}
 	c.CommandLog[rep.CliSeq].ReceiveTime = time.Now()
 	c.CommandLog[rep.CliSeq].Duration = c.CommandLog[rep.CliSeq].ReceiveTime.Sub(c.CommandLog[rep.CliSeq].SendTime)
 	c.ReceivedSoFar += Conf.ClientBatchSize

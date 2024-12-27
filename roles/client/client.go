@@ -151,17 +151,17 @@ func (c *Client) Epilogue() {
 
 */
 
-/* Original CloseLoopClient function
 func (c *Client) CloseLoopClient() {
 	c.startSending = time.Now()
 	ticker := time.NewTicker(Conf.ClientTimeout)
 MainLoop:
 	for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
 		c.sendOneRequest(i)
+Again:
 		select {
 		case rep := <-c.TCP.RecvChan:
 			if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
-				continue
+				goto Again
 			}
 			c.processOneReply(rep)
 		case <-ticker.C:
@@ -171,32 +171,7 @@ MainLoop:
 	c.endSending = time.Now()
 	c.endReceiving = time.Now()
 }
-*/
 
-// Version with resilience to duplicate response
-func (c *Client) CloseLoopClient() {
-    c.startSending = time.Now()
-    ticker := time.NewTicker(Conf.ClientTimeout)
-MainLoop:
-    for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
-        c.sendOneRequest(i)
-    ResponseLoop:
-        for {  // 応答を待つための無限ループ
-            select {
-            case rep := <-c.TCP.RecvChan:
-                if c.CommandLog[rep.CliSeq].Duration != time.Duration(0) {
-                    continue ResponseLoop  // 同じiのイテレーションで再度応答を待つ
-                }
-                c.processOneReply(rep)
-                break ResponseLoop  // 有効な応答を処理したら次のリクエストへ
-            case <-ticker.C:
-                break MainLoop
-            }
-        }
-    }
-    c.endSending = time.Now()
-    c.endReceiving = time.Now()
-}
 
 /*
 	The main body of a open-loop client.
